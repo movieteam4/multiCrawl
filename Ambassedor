@@ -1,0 +1,162 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Oct  1 19:08:41 2024
+
+@author: ASUS
+"""
+
+
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import re
+from datetime import datetime, timedelta
+import traceback
+anbassedor_error='國賓 程式完美'
+df_expanded=''
+try:
+    today = datetime.now()
+    # 生成今天及接下來的20天的日期列表
+    date_list = [today + timedelta(days=i) for i in range(21)]  
+    date_list_str = [date.strftime('%Y/%m/%d') for date in date_list]
+
+    # 使用 session 來保持連接
+    with requests.Session() as session:
+
+        # 抓取全台影城各個電影放映時刻表
+        url3 = 'https://www.ambassador.com.tw/home/TheaterList'
+        response3 = session.get(url3)  # 使用 session.get()
+
+        # 儲存所有電影資訊的列表
+        all_movies_info = []
+
+        if response3.status_code == 200:
+            soup3 = BeautifulSoup(response3.content, 'html.parser')
+            movie_theaters_links = soup3.select('div.grid-container > div.grid-x.grid-margin-x.small-up-1.medium-up-2.large-up-3.news-list-page.theater > div.cell > a')
+            movie_theaters = soup3.select('div.grid-container > div.grid-x.grid-margin-x.small-up-1.medium-up-2.large-up-3.news-list-page.theater > div.cell > a > div.theater-info > h6')
+
+            # 對於每個影城，遍歷所有日期
+            for theater_link, movie_theater in zip(movie_theaters_links, movie_theaters):
+                base_url = 'https://www.ambassador.com.tw'
+                theater_href = theater_link.get('href')
+
+                # 對每個影城遍歷所有日期
+                for date_str in date_list_str:
+                    if 'DT=' in theater_href:
+                        modified_url = base_url + theater_href.split('&DT=')[0] + '&DT=' + date_str
+                    else:
+                        modified_url = base_url + theater_href
+
+                    # print(movie_theater.text)
+                    # print(date_str)
+                    response4 = session.get(modified_url)  # 使用 session.get()
+
+                    if response4.status_code == 200:
+                        soup4 = BeautifulSoup(response4.content, 'html.parser')
+                        movie_links = soup4.select('div.theater-box > h3 > a')
+                        movie_tables = soup4.select('div.theater-box > p.tag-seat ')
+                        movie_seat_info = soup4.select('div.theater-box > ul.no-bullet.seat-list.theater')
+
+                        for link, movie_table, seat_info in zip(movie_links, movie_tables, movie_seat_info):
+                            links = base_url + link.get('href')
+                            response2 = session.get(links)  # 使用 session.get()
+
+                            if response2.status_code == 200:
+                                soup2 = BeautifulSoup(response2.content, 'html.parser')
+                                movie_span = soup2.select('div.cell.small-12.medium-12.large-12.movie-info-box > div.rating-box > span ')
+
+                                # 提取電影的基本信息
+                                if len(movie_span)<2:
+                                    rating=''
+                                    movie_long =''
+                                else:
+                                    rating = movie_span[0].text.strip()
+                                    movie_long = movie_span[1].text.strip()
+                                movie_inst = soup2.select('div.cell.small-12.medium-12.large-12.movie-info-box > p ')
+                                movie_actor_span = soup2.select('div.cell.small-12.medium-12.large-12.movie-info-box > p.note')
+
+                                actors = movie_actor_span[0].text.strip()
+                                movie_class = movie_actor_span[1].text.strip()
+                                movie_date = movie_actor_span[2].text.strip()
+
+                                full_title = link.text.strip()
+                                match = re.match(r'^(.*?)([A-Za-z\s]+)?$', full_title)
+                                if match:
+                                    chn_title = match.group(1).strip()
+                                    eng_title = match.group(2).strip() if match.group(2) else '無英文標題'
+
+                                table_text = movie_table.text.strip()
+                                version_info = table_text[table_text.find('(')+1 : table_text.find(')')] if '(' in table_text and ')' in table_text else "無版本信息"
+
+                                all_images = soup2.select('img')
+                                cover_image_urls = []
+
+                                for img in all_images:
+                                    if 'src' in img.attrs:
+                                        img_url = img['src']
+                                        if img_url.startswith('../'):
+                                            img_url = base_url + img_url[3:]
+                                        if 'Poster' in img_url:
+                                            cover_image_urls.append(img_url)
+
+                                cover_image_url = cover_image_urls[0] if cover_image_urls else '無封面圖片'
+
+                                movie_info = {
+                                    '電影院名稱': movie_theater.text.strip(),
+                                    '中文片名': chn_title,
+                                    '英文片名': eng_title,
+                                    '廳位': version_info,
+                                    # '限制級': rating,
+                                    # '撥放時長': movie_long,
+                                    '簡介': movie_inst[0].text.strip() if movie_inst else "無解說資訊",
+                                    '演員': actors,
+                                    '類型': movie_class,
+                                    '上映日': movie_date,
+                                    # '封面圖片': cover_image_url,
+                                    '日期': date_str,
+                                    '場次': []
+                                }
+
+                                movie_times = seat_info.select('li')
+                                for time in movie_times:
+                                    time_text = time.select_one('h6').text.strip()
+                                    seat_text = time.select_one('span.float-left.info').text.strip() if time.select_one('span.float-left.info') else '無座位信息'
+                                    movie_info['場次'].append({'時間': time_text, '座位': seat_text})
+
+                                all_movies_info.append(movie_info)
+
+                                # print(f"{chn_title}")
+                                # print(f"{eng_title}")
+                                # print(version_info)
+                                # print(rating)
+                                # print(movie_long)
+                                # print(movie_info['簡介'])
+                                # print(actors)
+                                # print(movie_class)
+                                # print(movie_date)
+                                # print(f"封面圖片: {cover_image_url}")
+                                # print(f"日期: {date_str}")
+
+                                # for show_time in movie_info['場次']:
+                                    # print(f"場次: {show_time['時間']}, 座位: {show_time['座位']}")
+
+                                # print()
+
+            # 將電影資訊轉換為 DataFrame
+            df_movies = pd.DataFrame(all_movies_info)
+            df_expanded = df_movies.explode('場次')  # 將場次信息展開
+            df_expanded['時刻表'] = df_expanded['場次'].apply(lambda x: x['時間'])
+            # df_expanded['座位信息'] = df_expanded['場次'].apply(lambda x: x['座位'])
+            df_expanded = df_expanded.drop(columns=['場次'])
+        
+            # 可選：將 DataFrame 輸出到 CSV 檔案
+            csv_filename = f'movies_info_{today.strftime("%Y%m%d")}.csv'  # 根據今天的日期命名
+            # df_expanded.to_csv(csv_filename, index=False, encoding='utf-8-sig')
+            # print(f"電影資訊已輸出至 {csv_filename}")
+        else:
+            print("無法訪問影城列表頁面。")
+except Exception as e:
+    tb = traceback.extract_tb(e.__traceback__)
+    anbassedor_error='國賓錯誤報告\n'
+    for frame in tb:
+        anbassedor_error+=f"文件：{frame.filename}, 行號：{frame.lineno}, 錯誤類型：{e.__class__.__name__}, 錯誤信息：{e}\n"
