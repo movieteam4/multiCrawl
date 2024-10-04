@@ -1,0 +1,131 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Sep 30 00:40:25 2024
+
+@author: ASUS
+"""
+
+import threading
+import pandas as pd
+from flask_mail import Mail, Message
+from flask import Flask
+import traceback
+import io
+app =Flask(__name__)
+app.config['MAIL_SERVER']='smtp.gmail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USERNAME'] = 'ian27368885@gmail.com'
+app.config['MAIL_PASSWORD'] = 'zfpqrdqjekvgwpuh'
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
+mail = Mail(app)
+
+x=''
+x1=''
+y=''
+y1=''
+z=''
+z1=''
+a=''
+a1=''
+b=''
+b1=''
+c=''
+c1=''
+# 美麗新影城資料
+def miranew():
+    global x,x1
+    from miranew_crawl import miranew_data,miranew_error
+    x= miranew_data
+    x1=miranew_error
+    print('美麗新城 done')
+# 秀泰資料
+def show_time():
+    global y,y1
+    from show_time_crawl import show_time_data,show_time_error
+    y= show_time_data
+    y1=show_time_error
+    print('秀泰 done')
+# 大直美麗華資料
+def mira():
+    global z,z1
+    from mira_movie_crawl import mira_data,mira_error
+    z= mira_data
+    z1=mira_error
+    print('美麗華 done')
+#威秀資料
+def vieshow():
+    global a,a1
+    from vienshow_crawl import vienson_data,vien_error
+    a=vienson_data
+    a1=vien_error
+    print('威秀 done')
+#國賓資料
+def amba():
+    global b,b1
+    from ambassedor import df_expanded,anbassedor_error
+    b=df_expanded
+    b1=anbassedor_error
+    print('國賓 done')
+#星光資料
+def shin():
+    global c,c1
+    from shin_kong import data , shin_error
+    c=data
+    c1=shin_error
+    print('新光 done')
+job1=threading.Thread(target=show_time)
+job2=threading.Thread(target=miranew)
+job3=threading.Thread(target=mira)
+job4=threading.Thread(target=vieshow)
+job5=threading.Thread(target=amba)
+job6=threading.Thread(target=shin)
+if __name__ == "__main__":
+    job1.start()
+    # job2.start()
+    job3.start()
+    job4.start()
+    job5.start()
+    # job6.start()
+    job1.join()
+    job2.start()
+    job2.join()
+    job6.start()
+    job3.join()
+    job4.join()
+    job5.join()
+    job6.join()
+    if type(x) == str:
+        print('美麗新城 炸裂!')
+    if type(y) == str:
+        print('秀泰 炸裂!')
+    if type(z) == str:
+        print('美麗華 炸裂!')
+    if type(a) == str:
+        print('威秀 炸裂!')
+    if type(b) == str:
+        print('國賓 炸裂!')
+    if type(c) == str:
+        print('新光 炸裂!')
+    to_be_concat=[]
+    for i in [x,y,z,a,b,c]:
+        if type(i) == str:
+            continue
+        to_be_concat.append(i)
+    combined_data=pd.concat(to_be_concat)
+    combined_data.to_csv('combined_data.csv',index=False,encoding='utf-8-sig')
+    combined_data_html=combined_data.to_html(classes='table table-striped', index=False)
+    csv_file = io.StringIO()
+    combined_data.to_csv(csv_file, index=False,encoding='utf-8-sig')
+    csv_file.seek(0)  # 重置指針到文件開始
+with app.app_context():
+    mail = Mail(app)
+    msg = Message('多工測試報告', sender = 'ian27368885@gmail.com', recipients = ['ian27368885@gmail.com','movierecommendations4@gmail.com'])
+    msg.body = f'{x1}\n{y1}\n{z1}\n{a1}\n{b1}\n{c1}'
+    msg.attach('combined_data.csv','text/csv',csv_file.getvalue())
+    mail.send(msg)
+    mail = Mail(app)
+    msg = Message('電影列表', sender = 'ian27368885@gmail.com', recipients = ['ian27368885@gmail.com','movierecommendations4@gmail.com'])
+    msg.html = combined_data_html
+    mail.send(msg)
+            
