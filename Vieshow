@@ -1,0 +1,135 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Oct  1 00:49:51 2024
+
+@author: ASUS
+"""
+from bs4 import BeautifulSoup as bs
+import requests as rq
+import re 
+import pandas as pd
+import traceback
+vien_error='華納威秀 程式完美'
+vienson_data=''
+try:
+    title_cns=[]
+    title_ens=[]
+    release_dates=[]
+    cinema_typess=[]
+    cinemass=[]
+    times=[]
+    dates=[]
+    genre_list=[]
+    descriptions=[]
+    directors=[]
+    actorss=[]
+    cinema_list=['MUVIE CINEMAS', 'MUVIE CINEMAS台北松仁威秀(MUCROWN)', '中和環球威秀影城',
+        '台中TIGER CITY威秀影城', '台中Tiger City威秀影城(GOLD CLASS)', '台中大遠百威秀影城',
+        '台中大魯閣新時代威秀影城', '台北京站威秀影城', '台北信義威秀影城', '台北西門威秀影城', '台南FOCUS 威秀影城',
+        '台南南紡威秀影城', '台南南紡威秀影城(GOLD CLASS)', '台南大遠百威秀影城', '新店裕隆城威秀影城',
+        '新竹大遠百威秀影城', '新竹大遠百威秀影城(GOLD CLASS)', '新竹巨城威秀影城', '板橋大遠百威秀影城',
+        '林口MITSUI OUTLET PARK威秀影城', '林口MITSUI OUTLET PARK威秀影城(Mappa)',
+        '桃園桃知道威秀影城', '桃園統領威秀影城', '花蓮新天堂樂園威秀影城', '頭份尚順威秀影城', '高雄大遠百威秀影城',
+        '高雄大遠百威秀影城(GOLD CLASS)']
+    cinema_types=['4DX / 英', '4DX PRE / 韓', 'ATMOS / 英', 'GC 數位 / 英', 'IMAX / 日',
+        'IMAX / 英', 'IMAX 特別場 / 英', 'LIVE / 日', 'LIVE / 韓', 'MAPPA / 英',
+        'MUCROWN / 英', 'PRE / 英', 'PRE / 韓', 'PRE 應援場 / 韓', 'TITAN / 英',
+        'TITAN LIVE / 韓', 'TITAN PRE / 韓', 'TITAN PRE 應援場 / 韓', '數位', '數位 / 國',
+        '數位 / 日', '數位 / 泰', '數位 / 英', '數位 / 韓','4DX / 日','A+ / 日']
+    dic={}
+    try:
+        for page in range(1,4):
+            sess=rq.Session()
+            r=sess.post(f'https://www.vscinemas.com.tw/vsweb/film/index.aspx?p={page}',headers={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36'},
+                        verify=False)
+            soup=bs(r.text,'html.parser')
+            r.close()
+            links=soup.select('ul.movieList>li a')
+            for link in links:
+                movie_id=link.get('href')
+                r=sess.get(f'https://www.vscinemas.com.tw/vsweb/film/{movie_id}',headers={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36'},
+                           verify=False)
+                r=r.text
+                r.close()
+                soup=bs(r,'html.parser')
+                pattern=re.compile(r'\d{4}\s[\u4e00-\u9fa5]\s\d{2}\s[\u4e00-\u9fa5]\s\d{2}\s[\u4e00-\u9fa5]')
+                matches=re.findall(r'\d{2}:\d{2}|\d{4}\s[\u4e00-\u9fa5]\s\d{2}\s[\u4e00-\u9fa5]\s\d{2}\s[\u4e00-\u9fa5]|hidden article',r)
+                body_list='\n'.join(matches).split('hidden article')[1:]
+                combined_pattern = '|'.join(cinema_types)
+                combined_pattern2 = '|'.join(cinema_list)
+                try:
+                    che=r.split('<h4><span class="icon-eyeglasses"></span>放映版本</h4>')[1].split('<p class="versionNote">*請選擇放映版本及影廳，場次將列於下方</p>')[0]
+                except IndexError:
+                    continue
+                description=soup.find(class_='bbsArticle').text
+                title_area=soup.find(class_='titleArea').text.split('\n')
+                title_cn=title_area[1]
+                title_en=title_area[2]
+                release_date=title_area[3]
+                info_area=soup.find(class_='infoArea').text.split('\n')
+                if len(info_area)<5:
+                    director=''
+                    actor=''
+                    gere=''
+                else:
+                    director=info_area[5]
+                    actor=info_area[9]
+                    gere=info_area[13]
+                soup2=bs(che,'html.parser')
+                cinemas=soup2.select('a')
+                # dic={}
+                order=[]
+                # for cinema in cinemas:
+                #     print(cinema.text)
+                for cinema in cinemas:
+                    if cinema.text in cinema_types:
+                        order.append(cinema.text)
+                        dic[cinema.text]=[]
+                        last=cinema.text
+                    else:
+                        dic[last].append(cinema.text)
+                order_index=0
+                cinema_index=0
+                for b in body_list:
+                    if b==' ' or b=='\n':
+                        continue
+                    try:
+                        if len(dic[order[order_index]])==cinema_index:
+                            cinema_index=0
+                            order_index+=1
+                    except IndexError:
+                        break
+                    for time in b.strip('\n').split('\n'):
+                        if len(time)>5:
+                            date=time
+                        else:
+                            if order_index!= len(order) and cinema_index!=len(dic[order[order_index]]):
+                                cinema_typess.append(order[order_index])
+                                cinemass.append(dic[order[order_index]][cinema_index])
+                                title_cns.append(title_cn)
+                                title_ens.append(title_en)
+                                release_dates.append(release_date)
+                                times.append(time)
+                                dates.append(date)
+                                genre_list.append(gere)
+                                descriptions.append(description)
+                                directors.append(director)
+                                actorss.append(actor)
+                                # print(title_en)
+                                # print(release_date)
+                                # print(order_index,order[order_index])
+                                # print(cinema_index,dic[order[order_index]][cinema_index])
+                                # print(time)
+                            else:
+                                break
+                    cinema_index+=1
+    finally:
+        vienson_data=pd.DataFrame({'中文片名':title_cns,'英文片名':title_ens,'廳位':cinema_typess,
+                                '日期':dates,'時刻表':times,'電影院名稱': cinemass,'上映日':release_dates,'類型':genre_list,
+                                '導演':directors,'演員':actorss,'簡介':descriptions})
+except Exception as e:
+    tb = traceback.extract_tb(e.__traceback__)
+    vien_error='華納錯誤報告\n'
+    for frame in tb:
+        vien_error+=f"文件：{frame.filename}, 行號：{frame.lineno}, 錯誤類型：{e.__class__.__name__}, 錯誤信息：{e}\n"  
+                
