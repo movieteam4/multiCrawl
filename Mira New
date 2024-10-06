@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Sep 27 17:51:48 2024
-
-@author: ASUS
-"""
-
 from selenium import webdriver
 # from selenium.webdriver.common.keys import Keys 
 from selenium.webdriver.common.by import By
@@ -56,6 +49,7 @@ try:
     actor=[]
     description=[]
     data_cinema=[]
+    l_move_img = []
     for visible_text in visible_texts:
         try:
             select.select_by_visible_text(visible_text)
@@ -106,6 +100,7 @@ try:
                         dates_data_list.append(show_date.text.strip())
                         versions.append(cinema_type.find(class_='MovieHallCht col').text)
                         data_cinema.append(visible_text)
+                        l_move_img.append(img)
                         # print(movie_time.text)
                 i+=1
             n+=1
@@ -118,7 +113,7 @@ try:
     driver.quit()
     miranew_data=pd.DataFrame({'中文片名':chinese_name,'英文片名':eng_name,'廳位':versions,
                             '日期':dates_data_list,'時刻表':time_data_list,'電影院名稱': data_cinema,'上映日':release_dates,'類型':genre,
-                            '導演':director,'演員':actor,'簡介':description})
+                            '導演':director,'演員':actor,'簡介':description,'宣傳照':l_move_img})
 except Exception as e:
     tb = traceback.extract_tb(e.__traceback__)
     miranew_error='美麗新城錯誤報告\n'
