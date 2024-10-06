@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Aug  8 15:34:05 2024
-
-@author: ASUS
-"""
 from bs4 import BeautifulSoup as bs
 import requests
 from werkzeug.utils import secure_filename
@@ -28,6 +22,7 @@ try:
     actor=[]
     description=[]
     data_cinema=[]
+    l_move_img = []
     sess=requests.Session()
     r=sess.post('https://www.miramarcinemas.tw/timetable',headers={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36'})
     r=r.text
@@ -91,11 +86,12 @@ try:
                             eng_name.append(te.text)
                             description.append(des.text.replace(' ',''))
                             versions.append(last_type[-1])
-                            dates_data_list.append(d[0].split('\n')[change_date][-1])
+                            dates_data_list.append(d[0].split('\n')[change_date])
                             chee=d[0].split('\n')
                             release_dates.append(detail_list[1])
                             genre.append(detail_list[3])
                             data_cinema.append('美麗華影城  Da-Zhi Cinema')
+                            l_move_img.append(img.get('src'))
                         elif tt!='':
                             last_type.append(tt)
                         
@@ -138,7 +134,7 @@ try:
         #     print()
     mira_data=pd.DataFrame({'中文片名':chinese_name,'英文片名':eng_name,'廳位':versions,
                                 '日期':dates_data_list,'時刻表':time_data_list,'電影院名稱': data_cinema,'上映日':release_dates,'類型':genre,
-                                '導演':director,'演員':actor,'簡介':description})
+                                '導演':director,'演員':actor,'簡介':description,'宣傳照':l_move_img})
 except Exception as e:
     tb = traceback.extract_tb(e.__traceback__)
     mira_error='美麗華錯誤報告\n'
