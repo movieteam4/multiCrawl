@@ -5,6 +5,10 @@ from flask import Flask
 import traceback
 import io
 import mysql.connector
+import lxml
+import re
+import datetime
+from datetime import datetime
 app =Flask(__name__)
 app.config['MAIL_SERVER']='smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
@@ -22,6 +26,8 @@ db_config = {
 connection = mysql.connector.connect(**db_config)
 if connection.is_connected():
     print("成功連接到 MariaDB 資料庫")
+print(pd.__version__)
+print(lxml.__version__) 
 cursor=connection.cursor()
 x=''
 x1=''
@@ -35,6 +41,8 @@ b=''
 b1=''
 c=''
 c1=''
+c2='no data'
+c3='no data'
 # 美麗新影城資料
 def miranew():
     global x,x1
@@ -66,13 +74,13 @@ def vieshow():
 # 國賓資料
 def amba():
     global b,b1
-    from ambassedor import df_expanded,anbassedor_error
-    b=df_expanded
+    from ambassedor import ambassedor_data,anbassedor_error
+    b=ambassedor_data
     b1=anbassedor_error
     print('國賓 done')
 # 星光資料
 def shin():
-    global c,c1
+    global c,c1,c2,c3
     from shin_kong import data , shin_error
     c=data
     c1=shin_error
@@ -115,25 +123,60 @@ if __name__ == "__main__":
         if type(i) == str:
             continue
         to_be_concat.append(i)
-    combined_data=pd.concat(to_be_concat)
-    count=len(combined_data)
-    combined_data.to_csv('combined_data.csv',index=False,encoding='utf-8-sig')
-    combined_data_html=combined_data.to_html(classes='table table-striped', index=False).replace(r"'",'’')
-    cursor.execute(f'''insert into movies_html (html) values ('{combined_data_html}') ''')
+    def remove_space(x):
+        full_width_punctuations = {
+        '。': '.',  # 全形句號 -> 半形句號
+        '，': ',',  # 全形逗號 -> 半形逗號
+        '！': '!',  # 全形驚嘆號 -> 半形驚嘆號
+        '？': '?',  # 全形問號 -> 半形問號
+        '：': ':',  # 全形冒號 -> 半形冒號
+        '；': ';',  # 全形分號 -> 半形分號
+        '（': '(',  # 全形左括號 -> 半形左括號
+        '）': ')',  # 全形右括號 -> 半形右括號
+        '【': '[',  # 全形左中括號 -> 半形左中括號
+        '】': ']',  # 全形右中括號 -> 半形右中括號
+        '《': '<',  # 全形左尖括號 -> 半形左尖括號
+        '》': '>',  # 全形右尖括號 -> 半形右尖括號
+        '「': '"',  # 全形左引號 -> 半形引號
+        '」': '"',  # 全形右引號 -> 半形引號
+        '、': ',',  # 全形頓號 -> 半形逗號
+    }
+        x=x.replace(' ','')
+        translation_table = str.maketrans(full_width_punctuations)
+        x=x.translate(translation_table)
+        return x
+
+    final_data=pd.concat(to_be_concat)
+    count=len(final_data)
+    final_data_html=final_data.to_html(classes='table table-striped', index=False).replace(r"'",'’')
+    cursor.execute(f'''insert into movies_html (html) values ('{final_data_html}') ''')
+    connection.commit()
+    print('未整裡資料,輸入完成')
+    cursor.execute('SELECT * FROM movies_html ORDER BY id DESC LIMIT 1')            
+    result=cursor.fetchall()
+    res=result[0][1]
+    final_data=pd.read_html(res)[0]
+    final_data['中文片名']=final_data['中文片名'].apply(remove_space)
+    cinema_to_be_fill=final_data.groupby('電影院名稱').count().index
+    columns_to_be_filled=['導演','演員','類型','宣傳照']
+    for cinema in cinema_to_be_fill:
+        to_fill=final_data[final_data['電影院名稱']==cinema]
+        ch_names=to_fill.groupby('中文片名').count().index
+        for ch_name in ch_names:
+            for col in columns_to_be_filled:
+                final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))]=final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))].fillna(value=to_fill[[col,'中文片名']][to_fill['中文片名']==ch_name].iloc[0][col])  
+    from unify_date import unify_date
+    final_data['日期']=final_data['日期'].apply(unify_date)
+    final_data_html=final_data.to_html(classes='table table-striped', index=False).replace(r"'",'’')
+    cursor.execute(f'''insert into movies_html (html) values ('{final_data_html}') ''')
     connection.commit()
     print('資料輸入完成')
-    csv_file = io.StringIO()
-    combined_data.to_csv(csv_file, index=False,encoding='utf-8-sig')
-    csv_file.seek(0)  # 重置指針到文件開始
 with app.app_context():
     mail = Mail(app)
     msg = Message('多工測試報告', sender = 'ian27368885@gmail.com', recipients = ['ian27368885@gmail.com','movierecommendations4@gmail.com'])
     msg.body = f'總共{count}筆資料\n{x1}\n{y1}\n{z1}\n{a1}\n{b1}\n{c1}'
-    msg.attach('combined_data.csv','text/csv',csv_file.getvalue())
     mail.send(msg)
     mail = Mail(app)
     msg = Message('電影列表', sender = 'ian27368885@gmail.com', recipients = ['ian27368885@gmail.com','movierecommendations4@gmail.com'])
-    msg.html = combined_data_html
+    msg.html = final_data_html
     mail.send(msg)
-
-            
