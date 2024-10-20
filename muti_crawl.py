@@ -4,7 +4,7 @@ Created on Mon Sep 30 00:40:25 2024
 
 @author: ASUS
 """
-#123123
+#12312354544
 import threading
 import pandas as pd
 from flask_mail import Mail, Message
@@ -112,15 +112,13 @@ def week_ranking(final_data):
         driver.quit()
     ranking_week_data['中文片名']= ranking_week_data['中文片名'].apply(remove_space)
     final_data = pd.merge(final_data, ranking_week_data[['中文片名', '當周票房數']], on='中文片名', how='left')
-    final_data=final_data.sort_values(by='當周票房數', ascending=False)
-    final_data = final_data.drop_duplicates(subset='中文片名', keep='first')
     # final_data = final_data[['中文片名',"當周金額","當周票房數","總金額","總票房"]].sort_values(by='當周票房數', ascending=False).head(10)
     return final_data
 now_hour=datetime.now().hour
 now_minute=datetime.now().minute
 if now_minute>=50:
     now_hour+=1
-if now_hour%2==0 or now_hour==0: 
+if now_hour%2==0 or now_hour==0:
     app =Flask(__name__)
     app.config['MAIL_SERVER']='smtp.gmail.com'
     app.config['MAIL_PORT'] = 465
@@ -141,7 +139,7 @@ if now_hour%2==0 or now_hour==0:
     if connection.is_connected():
         print("成功連接到 MariaDB 資料庫")
     print(pd.__version__)
-    print(lxml.__version__) 
+    print(lxml.__version__)
     cursor=connection.cursor()
     x=''
     x1=''
@@ -273,13 +271,19 @@ if now_hour%2==0 or now_hour==0:
             final_data=pd.concat([final_data,a])
             count=len(final_data)
             cinema_to_be_fill=final_data.groupby('電影院名稱').count().index
-            columns_to_be_filled=['導演','演員','類型','宣傳照']
+            columns_to_be_filled=['導演','演員','類型','宣傳照','youtube','time_link']
             for cinema in cinema_to_be_fill:
                 to_fill=final_data[final_data['電影院名稱']==cinema]
                 ch_names=to_fill.groupby('中文片名').count().index
                 for ch_name in ch_names:
                     for col in columns_to_be_filled:
                         final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))]=final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))].fillna(value=to_fill[[col,'中文片名']][to_fill['中文片名']==ch_name].iloc[0][col])
+            for cinema in cinema_to_be_fill:
+                to_fill=final_data[final_data['電影院名稱']==cinema]
+                ch_names=to_fill.groupby('英文片名').count().index
+                for ch_name in ch_names:
+                    for col in columns_to_be_filled:
+                        final_data[col][(final_data[col].isna()) & (final_data['英文片名'].str.contains(ch_name,case=False))]=final_data[col][(final_data[col].isna()) & (final_data['英文片名'].str.contains(ch_name,case=False))].fillna(value=to_fill[[col,'英文片名']][to_fill['英文片名']==ch_name].iloc[0][col])
             final_data=week_ranking(final_data)
             final_data1=final_data.iloc[:len(final_data)//3]
             final_data2=final_data.iloc[len(final_data)//3:(len(final_data)//3)*2]
@@ -295,7 +299,7 @@ if now_hour%2==0 or now_hour==0:
             connection.commit()
             print('資料輸入完成')
         else:
-            print('程式有誤')    
+            print('程式有誤')
         #     a2=a.iloc[:len(a)//2]
         #     a=a.iloc[len(a)//2:]
         #     vieshow_html=a.to_html(classes='table table-striped', index=False).replace(r"'",'’')
@@ -324,7 +328,7 @@ if now_hour%2==0 or now_hour==0:
         # cursor.execute(f'''insert into movies_html (html) values ('{final_data_html}') ''')
         # connection.commit()
         # print('未整裡資料,輸入完成')
-        # cursor.execute('SELECT * FROM movies_html ORDER BY id DESC LIMIT 1')            
+        # cursor.execute('SELECT * FROM movies_html ORDER BY id DESC LIMIT 1')
         # result=cursor.fetchall()
         # res=result[0][1]
         # final_data=pd.read_html(res)[0]
@@ -336,7 +340,7 @@ if now_hour%2==0 or now_hour==0:
         # #     ch_names=to_fill.groupby('中文片名').count().index
         # #     for ch_name in ch_names:
         # #         for col in columns_to_be_filled:
-        # #             final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))]=final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))].fillna(value=to_fill[[col,'中文片名']][to_fill['中文片名']==ch_name].iloc[0][col])  
+        # #             final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))]=final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))].fillna(value=to_fill[[col,'中文片名']][to_fill['中文片名']==ch_name].iloc[0][col])
         # # from unify_date import unify_date
         # # final_data['日期']=final_data['日期'].apply(unify_date)
         # final_data_html=final_data.to_html(classes='table table-striped', index=False).replace(r"'",'’')
