@@ -272,12 +272,14 @@ if now_hour%2==0 or now_hour==0:
             count=len(final_data)
             cinema_to_be_fill=final_data.groupby('電影院名稱').count().index
             columns_to_be_filled=['導演','演員','類型','宣傳照','youtube','time_link']
+            #根據中文片名填空值
             for cinema in cinema_to_be_fill:
                 to_fill=final_data[final_data['電影院名稱']==cinema]
                 ch_names=to_fill.groupby('中文片名').count().index
                 for ch_name in ch_names:
                     for col in columns_to_be_filled:
                         final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))]=final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))].fillna(value=to_fill[[col,'中文片名']][to_fill['中文片名']==ch_name].iloc[0][col])
+            #根據英文片名填空值
             for cinema in cinema_to_be_fill:
                 to_fill=final_data[final_data['電影院名稱']==cinema]
                 ch_names=to_fill.groupby('英文片名').count().index
