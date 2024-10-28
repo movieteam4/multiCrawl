@@ -118,7 +118,7 @@ now_hour=datetime.now().hour
 now_minute=datetime.now().minute
 if now_minute>=50:
     now_hour+=1
-if now_hour%2==0 or now_hour==0:
+if now_hour%1==0 or now_hour==0:
     app =Flask(__name__)
     app.config['MAIL_SERVER']='smtp.gmail.com'
     app.config['MAIL_PORT'] = 465
@@ -163,12 +163,12 @@ if now_hour%2==0 or now_hour==0:
         x1=miranew_error
         print('美麗新城 done')
     # 秀泰資料
-    def show_time():
-        global y,y1
-        from show_time_crawl import show_time_data,show_time_error
-        y= show_time_data
-        y1=show_time_error
-        print('秀泰 done')
+    # def show_time():
+    #     global y,y1
+    #     from show_time_crawl import show_time_data,show_time_error
+    #     y= show_time_data
+    #     y1=show_time_error
+    #     print('秀泰 done')
     # 大直美麗華資料
     def mira():
         global z,z1
@@ -197,20 +197,20 @@ if now_hour%2==0 or now_hour==0:
         c=data
         c1=shin_error
         print('新光 done')
-    job1=threading.Thread(target=show_time)
+    # job1=threading.Thread(target=show_time)
     job2=threading.Thread(target=miranew)
     job3=threading.Thread(target=mira)
     job4=threading.Thread(target=vieshow)
     job5=threading.Thread(target=amba)
     job6=threading.Thread(target=shin)
     if __name__ == "__main__":
-        job1.start()
+        # job1.start()
         # job2.start()
         job3.start()
         job4.start()
         job5.start()
         # job6.start()
-        job1.join()
+        # job1.join()
         job2.start()
         job2.join()
         job6.start()
@@ -272,20 +272,38 @@ if now_hour%2==0 or now_hour==0:
             count=len(final_data)
             cinema_to_be_fill=final_data.groupby('電影院名稱').count().index
             columns_to_be_filled=['導演','演員','類型','宣傳照','youtube','time_link']
-            #根據中文片名填空值
             for cinema in cinema_to_be_fill:
                 to_fill=final_data[final_data['電影院名稱']==cinema]
                 ch_names=to_fill.groupby('中文片名').count().index
                 for ch_name in ch_names:
                     for col in columns_to_be_filled:
-                        final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))]=final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))].fillna(value=to_fill[[col,'中文片名']][to_fill['中文片名']==ch_name].iloc[0][col])
-            #根據英文片名填空值
+                        try:
+                            final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))]=final_data[col][(final_data[col].isna()) & (final_data['中文片名'].str.contains(ch_name,case=False))].fillna(value=to_fill[[col,'中文片名']][to_fill['中文片名']==ch_name].iloc[0][col])
+                        except ValueError:
+                            pass
             for cinema in cinema_to_be_fill:
                 to_fill=final_data[final_data['電影院名稱']==cinema]
                 ch_names=to_fill.groupby('英文片名').count().index
                 for ch_name in ch_names:
                     for col in columns_to_be_filled:
-                        final_data[col][(final_data[col].isna()) & (final_data['英文片名'].str.contains(ch_name,case=False))]=final_data[col][(final_data[col].isna()) & (final_data['英文片名'].str.contains(ch_name,case=False))].fillna(value=to_fill[[col,'英文片名']][to_fill['英文片名']==ch_name].iloc[0][col])
+                        try:
+                            final_data[col][(final_data[col].isna()) & (final_data['英文片名'].str.contains(ch_name,case=False))]=final_data[col][(final_data[col].isna()) & (final_data['英文片名'].str.contains(ch_name,case=False))].fillna(value=to_fill[[col,'英文片名']][to_fill['英文片名']==ch_name].iloc[0][col])
+                        except ValueError:
+                            pass
+            # def simplify_release_date(release_date):
+            #     release_date=re.sub(r'\D', '', release_date)
+            #     return release_date
+            def keep_chinese_english_numbers(input_string):
+                return re.sub(r'[^0-9a-zA-Z\u4e00-\u9fa5]', '', input_string)
+            final_data['中文片名']=final_data['中文片名'].apply(keep_chinese_english_numbers)
+            # final_data['上映日']=final_data['上映日'].apply(simplify_release_date)
+            # final_data['tomato']=''
+            # movie_list=final_data.groupby('英文片名').count().index
+            # from tomato import get_tomatos
+            # for movie in movie_list:
+            #     release_date=final_data[final_data['英文片名']==movie]['上映日'].iloc[0][:4]
+            #     final_data.loc[final_data['英文片名'] == movie, 'tomato'] = get_tomatos(movie, release_date)
+                
             final_data=week_ranking(final_data)
             final_data1=final_data.iloc[:len(final_data)//3]
             final_data2=final_data.iloc[len(final_data)//3:(len(final_data)//3)*2]
